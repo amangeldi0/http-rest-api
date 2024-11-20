@@ -1,6 +1,7 @@
 package apiserver
 
 import (
+	"github.com/amangeldi0/http-rest-api/internal/app/store"
 	"github.com/gorilla/mux"
 	"github.com/sirupsen/logrus"
 	"io"
@@ -11,6 +12,7 @@ type APIServer struct {
 	config *Config
 	logger *logrus.Logger
 	router *mux.Router
+	store  *store.Store
 }
 
 func New(config *Config) *APIServer {
@@ -33,6 +35,12 @@ func (s *APIServer) Start() error {
 
 	s.configRouter()
 
+	s.logger.Info("Configuring store")
+
+	if err := s.configureStore(); err != nil {
+		return err
+	}
+
 	s.logger.Info("Starting API Server")
 
 	return http.ListenAndServe(s.config.BindAddr, s.router)
@@ -40,7 +48,6 @@ func (s *APIServer) Start() error {
 
 func (s *APIServer) configureLogger() error {
 	level, err := logrus.ParseLevel(s.config.LogLevel)
-
 	if err != nil {
 		return err
 	}
@@ -52,6 +59,18 @@ func (s *APIServer) configureLogger() error {
 
 func (s *APIServer) configRouter() {
 	s.router.HandleFunc("/hello", s.handleHello())
+}
+
+func (s *APIServer) configureStore() error {
+	st := s.store.New(s.config.Store)
+
+	if err := st.Open(); err != nil {
+		return err
+	}
+
+	s.store = st
+
+	return nil
 }
 
 func (s *APIServer) handleHello() http.HandlerFunc {
